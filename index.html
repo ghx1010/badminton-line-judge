@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#07130f" />
+  <title>羽界 · 简易判线</title>
+  <style>
+    :root{--bg:#07130f;--card:#10231b;--line:#234638;--mint:#62f5b2;--yellow:#ffd166;--red:#ff6b6b;--text:#f3fff9;--muted:#93ad9f}
+    *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,"PingFang SC","Microsoft YaHei",sans-serif}
+    body{min-height:100svh;background:radial-gradient(circle at 85% 0,#184531 0,transparent 34%),var(--bg)}
+    button,input{font:inherit}button{cursor:pointer}.app{width:min(100%,540px);margin:auto;padding:calc(18px + env(safe-area-inset-top)) 16px calc(26px + env(safe-area-inset-bottom))}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px}.brand{display:flex;gap:10px;align-items:center}.logo{display:grid;place-items:center;width:40px;height:40px;border:1px solid #3b745d;border-radius:13px;background:#143325;color:var(--mint);font-size:20px}.brand h1{margin:0;font-size:19px}.brand p{margin:3px 0 0;color:var(--muted);font-size:11px;letter-spacing:.08em}.badge{padding:6px 9px;border-radius:99px;background:#173c2b;color:var(--mint);font-size:11px}
+    .viewer{position:relative;overflow:hidden;aspect-ratio:3/4;border:1px solid #315b49;border-radius:22px;background:#09100d;box-shadow:0 18px 48px #0008}.viewer video,.viewer canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}.viewer canvas{touch-action:none}.empty{position:absolute;inset:0;display:grid;place-content:center;text-align:center;padding:30px;color:var(--muted)}.empty .bird{font-size:42px;margin-bottom:13px;filter:grayscale(1)}.empty strong{color:var(--text);font-size:16px}.empty p{font-size:12px;line-height:1.6}
+    .topHint{position:absolute;z-index:3;left:12px;right:12px;top:12px;display:none;padding:10px 12px;border-radius:12px;background:#06100dcc;backdrop-filter:blur(8px);font-size:12px;color:#dfffee}.topHint b{color:var(--yellow)}
+    .result{position:absolute;z-index:4;left:50%;bottom:15px;transform:translateX(-50%);display:none;min-width:150px;text-align:center;padding:10px 18px;border-radius:14px;background:#09120fe6;border:1px solid currentColor;backdrop-filter:blur(8px);font-size:12px}.result strong{display:block;font-size:25px;line-height:1.05}.result.in{color:var(--mint)}.result.out{color:var(--red)}
+    .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.btn{border:1px solid var(--line);border-radius:14px;padding:13px 10px;background:#13261e;color:var(--text);font-weight:700}.btn.primary{background:var(--mint);border-color:var(--mint);color:#052015}.btn:disabled{opacity:.4;cursor:not-allowed}.btn.full{grid-column:1/-1}.file{position:relative;overflow:hidden}.file input{position:absolute;inset:0;opacity:0;cursor:pointer}
+    .panel{margin-top:14px;padding:16px;border:1px solid var(--line);border-radius:18px;background:#0d1e17cc}.stepHead{display:flex;justify-content:space-between;gap:15px}.stepHead h2{font-size:15px;margin:0}.stepHead p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.5}.counter{white-space:nowrap;color:var(--yellow);font-size:12px}.dots{display:flex;gap:7px;margin:14px 0}.dot{height:5px;flex:1;border-radius:8px;background:#294338}.dot.done{background:var(--mint)}
+    .actions{display:flex;gap:9px}.actions .btn{flex:1;padding:10px}.tips{margin-top:14px;padding:13px 14px;border-radius:15px;background:#0a1812;color:var(--muted);font-size:11px;line-height:1.65}.tips b{color:#d8eee3}.legal{margin:14px 3px 0;color:#6f8d7e;font-size:10px;line-height:1.6;text-align:center}
+    @media (min-width:560px){.viewer{aspect-ratio:4/3}.app{padding-top:25px}}
+  </style>
+</head>
+<body><main class="app">
+  <header><div class="brand"><div class="logo">◒</div><div><h1>羽界 · 简易判线</h1><p>BADMINTON LINE CHECK</p></div></div><span class="badge">半自动原型</span></header>
+  <section class="viewer" id="viewer">
+    <video id="video" playsinline muted></video><canvas id="canvas"></canvas>
+    <div class="empty" id="empty"><div class="bird">🏸</div><strong>载入一段球场画面</strong><p>固定手机并确保完整单打场地都在画面内<br>可打开摄像头或选择本地视频</p></div>
+    <div class="topHint" id="hint"></div><div class="result" id="result"></div>
+  </section>
+  <div class="controls">
+    <button class="btn primary" id="cameraBtn">打开摄像头</button>
+    <label class="btn file" style="text-align:center">选择本地视频<input id="file" type="file" accept="video/*"></label>
+    <button class="btn full" id="pauseBtn" disabled>暂停画面并开始校准</button>
+  </div>
+  <section class="panel">
+    <div class="stepHead"><div><h2 id="stepTitle">1. 准备画面</h2><p id="stepDesc">载入视频后，在清楚看到完整球场时暂停。</p></div><span class="counter" id="counter">等待视频</span></div>
+    <div class="dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
+    <div class="actions"><button class="btn" id="undoBtn" disabled>撤销一点</button><button class="btn" id="resetBtn" disabled>重新校准</button></div>
+    <div class="tips"><b>拍摄建议</b>　手机横放或竖放均可，保持稳定；四个校准点请点击单打边线与底线的交点。标记完成后，每次点击画面都视为羽毛球首次触地点。</div>
+  </section>
+  <p class="legal">本工具仅用于爱好者人工辅助演示，不含实时自动追踪，不用于正式比赛判罚。结果受机位、畸变、校准与人工点击误差影响。</p>
+</main>
+<script>
+const $=s=>document.querySelector(s), video=$('#video'),canvas=$('#canvas'),ctx=canvas.getContext('2d'),empty=$('#empty'),hint=$('#hint'),result=$('#result');
+let mode='empty',points=[],H=null,stream=null,frameW=0,frameH=0; const labels=['近端左角','近端右角','远端右角','远端左角'];
+function size(){const r=canvas.getBoundingClientRect(),d=devicePixelRatio||1;canvas.width=r.width*d;canvas.height=r.height*d;ctx.setTransform(d,0,0,d,0,0);draw()}
+addEventListener('resize',size);new ResizeObserver(size).observe(canvas);
+function mediaRect(){const w=canvas.clientWidth,h=canvas.clientHeight;if(!frameW)return{x:0,y:0,w,h};let s=Math.min(w/frameW,h/frameH),rw=frameW*s,rh=frameH*s;return{x:(w-rw)/2,y:(h-rh)/2,w:rw,h:rh}}
+function ui(){const title=$('#stepTitle'),desc=$('#stepDesc'),count=$('#counter'),dots=[...document.querySelectorAll('.dot')];dots.forEach((x,i)=>x.classList.toggle('done',mode==='calibrate'?i<1:mode==='judge'?true:false));
+ if(mode==='empty'||mode==='playing'){title.textContent='1. 准备画面';desc.textContent=mode==='playing'?'在边线最清楚的一帧暂停。':'载入视频后，在清楚看到完整球场时暂停。';count.textContent=mode==='playing'?'视频播放中':'等待视频'}
+ if(mode==='calibrate'){title.textContent='2. 透视校准';desc.textContent=`请点击单打边界的${labels[points.length]}。`;count.textContent=`${points.length} / 4`}
+ if(mode==='judge'){title.textContent='3. 标记落点';desc.textContent='点击羽毛球首次接触地面的位置。';count.textContent='校准完成'}
+ $('#undoBtn').disabled=!(mode==='calibrate'&&points.length);$('#resetBtn').disabled=!points.length;hint.style.display=mode==='calibrate'?'block':'none';if(mode==='calibrate')hint.innerHTML=`校准 ${points.length+1}/4　<b>${labels[points.length]}</b>`;draw()}
+async function camera(){try{if(stream)stream.getTracks().forEach(t=>t.stop());stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});video.srcObject=stream;await video.play();loaded()}catch(e){alert('无法打开摄像头。请确认使用 HTTPS/localhost 并允许摄像头权限，或改选本地视频。')}}
+function loaded(){frameW=video.videoWidth||1280;frameH=video.videoHeight||720;empty.style.display='none';mode='playing';$('#pauseBtn').disabled=false;$('#pauseBtn').textContent='暂停画面并开始校准';ui()}
+$('#cameraBtn').onclick=camera;$('#file').onchange=e=>{let f=e.target.files[0];if(!f)return;if(stream)stream.getTracks().forEach(t=>t.stop());video.srcObject=null;video.src=URL.createObjectURL(f);video.onloadedmetadata=()=>video.play().then(loaded)};
+$('#pauseBtn').onclick=()=>{if(mode==='playing'){video.pause();mode='calibrate';points=[];H=null;$('#pauseBtn').textContent='继续播放';ui()}else{video.play();mode='playing';points=[];H=null;result.style.display='none';$('#pauseBtn').textContent='暂停画面并开始校准';ui()}};
+$('#undoBtn').onclick=()=>{points.pop();ui()};$('#resetBtn').onclick=()=>{points=[];H=null;mode='calibrate';result.style.display='none';ui()};
+canvas.addEventListener('pointerup',e=>{if(mode!=='calibrate'&&mode!=='judge')return;const r=canvas.getBoundingClientRect(),p={x:e.clientX-r.left,y:e.clientY-r.top};const m=mediaRect();if(p.x<m.x||p.x>m.x+m.w||p.y<m.y||p.y>m.y+m.h)return;
+ if(mode==='calibrate'){points.push(p);if(points.length===4){H=homography([[0,13.4],[5.18,13.4],[5.18,0],[0,0]],points.map(q=>[q.x,q.y]));mode='judge'}result.style.display='none';ui()}else judge(p)});
+function solve(A,b){for(let i=0;i<b.length;i++){let m=i;for(let j=i+1;j<b.length;j++)if(Math.abs(A[j][i])>Math.abs(A[m][i]))m=j;[A[i],A[m]]=[A[m],A[i]];[b[i],b[m]]=[b[m],b[i]];let d=A[i][i];if(Math.abs(d)<1e-9)return null;for(let k=i;k<A[i].length;k++)A[i][k]/=d;b[i]/=d;for(let j=0;j<b.length;j++)if(j!==i){let f=A[j][i];for(let k=i;k<A[j].length;k++)A[j][k]-=f*A[i][k];b[j]-=f*b[i]}}return b}
+function homography(src,dst){let A=[],b=[];for(let i=0;i<4;i++){let[x,y]=src[i],[u,v]=dst[i];A.push([x,y,1,0,0,0,-u*x,-u*y]);b.push(u);A.push([0,0,0,x,y,1,-v*x,-v*y]);b.push(v)}let h=solve(A,b);return h&&[...h,1]}
+function inv(M){let[a,b,c,d,e,f,g,h,i]=M,A=e*i-f*h,B=c*h-b*i,C=b*f-c*e,D=f*g-d*i,E=a*i-c*g,F=c*d-a*f,G=d*h-e*g,H=b*g-a*h,I=a*e-b*d,det=a*A+b*D+c*G;return[A,B,C,D,E,F,G,H,I].map(x=>x/det)}
+function map(M,x,y){let z=M[6]*x+M[7]*y+M[8];return{x:(M[0]*x+M[1]*y+M[2])/z,y:(M[3]*x+M[4]*y+M[5])/z}}
+function judge(p){let q=map(inv(H),p.x,p.y),inside=q.x>=0&&q.x<=5.18&&q.y>=0&&q.y<=13.4;result.className='result '+(inside?'in':'out');result.innerHTML=`<strong>${inside?'界 内':'出 界'}</strong>${inside?'落点位于单打边界内':'落点位于单打边界外'}`;result.style.display='block';draw(p,inside)}
+function draw(last,inside){ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);if(points.length){ctx.lineWidth=2;ctx.strokeStyle='#62f5b2';ctx.fillStyle='#ffd166';points.forEach((p,i)=>{ctx.beginPath();ctx.arc(p.x,p.y,6,0,7);ctx.fill();ctx.fillStyle='#07130f';ctx.font='bold 9px sans-serif';ctx.textAlign='center';ctx.fillText(i+1,p.x,p.y+3);ctx.fillStyle='#ffd166'});if(points.length>1){ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);points.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));ctx.stroke()}}
+ if(H){const lines=[[[0,0],[5.18,0]],[[5.18,0],[5.18,13.4]],[[5.18,13.4],[0,13.4]],[[0,13.4],[0,0]],[[0,1.98],[5.18,1.98]],[[0,11.42],[5.18,11.42]],[[2.59,0],[2.59,1.98]],[[2.59,11.42],[2.59,13.4]],[[0,6.7],[5.18,6.7]]];ctx.strokeStyle='#62f5b2';ctx.lineWidth=2;ctx.shadowColor='#07130f';ctx.shadowBlur=3;lines.forEach(l=>{let a=map(H,...l[0]),b=map(H,...l[1]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()});ctx.shadowBlur=0}
+ if(last){ctx.fillStyle=inside?'#62f5b2':'#ff6b6b';ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(last.x,last.y,9,0,7);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(last.x-15,last.y);ctx.lineTo(last.x+15,last.y);ctx.moveTo(last.x,last.y-15);ctx.lineTo(last.x,last.y+15);ctx.stroke()}}
+video.addEventListener('loadedmetadata',()=>{frameW=video.videoWidth;frameH=video.videoHeight;size()});ui();size();
+</script></body></html>
